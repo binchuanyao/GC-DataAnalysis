@@ -178,7 +178,7 @@
        <string notr="true"/>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="Inventory">
        <property name="styleSheet">
@@ -1710,7 +1710,7 @@ font: 75 14pt &quot;微软雅黑&quot;;</string>
           </property>
          </widget>
         </item>
-        <item row="8" column="0" colspan="2">
+        <item row="8" column="0" colspan="3">
          <widget class="QTableView" name="ob_timeTableView">
           <property name="styleSheet">
            <string notr="true"/>
@@ -1728,9 +1728,6 @@ font: 75 14pt &quot;微软雅黑&quot;;</string>
            <number>40</number>
           </attribute>
          </widget>
-        </item>
-        <item row="8" column="2">
-         <widget class="QTextBrowser" name="textBrowser"/>
         </item>
        </layout>
       </widget>

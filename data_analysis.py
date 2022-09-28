@@ -824,10 +824,7 @@ class Ui_MainWindow(object):
         self.ob_timeTableView.horizontalHeader().setMinimumSectionSize(40)
         self.ob_timeTableView.verticalHeader().setDefaultSectionSize(40)
         self.ob_timeTableView.verticalHeader().setMinimumSectionSize(40)
-        self.gridLayout_3.addWidget(self.ob_timeTableView, 8, 0, 1, 2)
-        self.textBrowser = QtWidgets.QTextBrowser(self.Outbound)
-        self.textBrowser.setObjectName("textBrowser")
-        self.gridLayout_3.addWidget(self.textBrowser, 8, 2, 1, 1)
+        self.gridLayout_3.addWidget(self.ob_timeTableView, 8, 0, 1, 3)
         self.tabWidget.addTab(self.Outbound, "")
         self.Inbound = QtWidgets.QWidget()
         self.Inbound.setStyleSheet("QPushButton:hover{\n"
@@ -1123,7 +1120,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
