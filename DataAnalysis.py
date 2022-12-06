@@ -2401,8 +2401,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             sku_index = ['month', 'weekday', 'date', 'delivery_mode', 'deliveryNO']
             daily_container_sku_df = pd.pivot_table(df, index=sku_index,
-                                                values=['sku'],
-                                                aggfunc={'sku': pd.Series.nunique},
+                                                values=['sku', 'quantity', 'vol'],
+                                                aggfunc={'sku': pd.Series.nunique,'quantity': np.sum, 'vol':np.sum},
                                                 fill_value=0).reset_index()
 
             print('*'*20, "daily_container_sku_df")
@@ -2716,7 +2716,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         elif 'C5' in sheet_name:
             # 海柜及快递来货体积及件数分布
-            remark = '''测算逻辑 \n 1. 日维度海柜及快递中SKU数量'''
+            remark = '''测算逻辑 \n 1. 日维度统计海柜及快递中SKU数量，件数及体积'''
 
             worksheet1.set_row(0, 50)  # 设置测试逻辑行高
             worksheet1.set_row(1, 80)  # 设置数据来源行高
