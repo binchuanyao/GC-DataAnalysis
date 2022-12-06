@@ -35,7 +35,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setWindowTitle('GC数据分析')
 
         self.statusbar.showMessage('谷仓-仓储管理部-规划实施组')
-        self.statusbar.addPermanentWidget(QLabel("数据分析V1.0"), stretch=0)  # 比例
+        self.statusbar.addPermanentWidget(QLabel("数据分析V1.3"), stretch=0)  # 比例
         # self.statusBar.addPermanentWidget(self.show_2, stretch=0)
 
         '''基础数据dataframe'''
@@ -51,7 +51,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_location_df = pd.DataFrame()
         self.inventory_customer_df = pd.DataFrame()
         self.inventory_age_df = pd.DataFrame()
-
+        self.inv_info = ''
 
         '''出库分析结果deatframe变量，设置为类的属性以便在保存时调用'''
         ### EIQ分析结果
@@ -93,9 +93,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         '''入库分析结果deatframe变量，设置为类的属性以便在保存时调用'''
         self.ib_date_distribution = pd.DataFrame()         # 日来货分布
-        self.ib_container_carton_type = pd.DataFrame()          # 海柜来货箱型分布
-        self.ib_container_skuNum = pd.DataFrame()    # 海柜sku种类分布
+        self.ib_container_carton_type = pd.DataFrame()     # 海柜来货箱型分布
+        self.ib_container_skuNum = pd.DataFrame()          # 海柜sku种类分布
         self.ib_daily_container_num = pd.DataFrame()       # 日来柜数量
+        self.ib_daily_container_sku = pd.DataFrame()       # 日来柜SKU数
         self.ib_info = ''
 
 
@@ -171,13 +172,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 except:
                     self.inv_df = pd.read_csv(filename, encoding='gbk')
                 # 删除有空值的行
-                self.inv_df.dropna(how='any', inplace=True)
+                self.inv_df.dropna(how='all', inplace=True)
                 model = dfModel(self.inv_df.head(100))
                 self.inv_tableView.setModel(model)
             elif 'xlsx' in filename:
                 self.inv_df = pd.read_excel(filename)
                 # 删除有空值的行
-                self.inv_df.dropna(how='any', inplace=True)
+                self.inv_df.dropna(how='all', inplace=True)
                 model = dfModel(self.inv_df.head(100))
                 self.inv_tableView.setModel(model)
             else:
@@ -197,14 +198,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 except:
                     self.sku_df = pd.read_csv(filename, encoding='gbk')
                 # 删除有空值的行
-                self.sku_df.dropna(how='any', inplace=True)
+                self.sku_df.dropna(how='all', inplace=True)
                 model = dfModel(self.sku_df.head(100))
                 self.sku_tableView.setModel(model)
 
             elif 'xlsx' in filename:
                 self.sku_df = pd.read_excel(filename)
                 # 删除有空值的行
-                self.sku_df.dropna(how='any', inplace=True)
+                self.sku_df.dropna(how='all', inplace=True)
 
                 print(self.sku_df.head(10))
 
@@ -221,18 +222,44 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             # 输入库存数据对应列编号
             inv_dateCol = self.inv_df.columns[int(self.inv_dateCol.text())]  # 库存日期
+            inv_putawayDateCol = self.inv_df.columns[int(self.inv_putawayDateCol.text())]  # 上架日期
+            inv_customerCol = self.inv_df.columns[int(self.inv_customerCol.text())]  # 客户代码
             inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]    # 产品代码
-            inv_customerCol = self.inv_df.columns[int(self.inv_customerCol.text())]    # 客户代码
-            inv_putawayDateCol = self.inv_df.columns[int(self.inv_putawayDateCol.text())]    # 上架日期
             inv_skuSizeCol = self.inv_df.columns[int(self.inv_skuSizeCol.text())]    # 产品货型
             inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]    # 在库件数
             inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]    # 在库体积
 
+            inv_invTypeCol = self.inv_df.columns[int(self.inv_locTypeCol.text())]    # 储位类型
+            inv_skuLengthCol = self.inv_df.columns[int(self.inv_skuLengthCol.text())]    # 产品长
+            inv_skuWidthCol = self.inv_df.columns[int(self.inv_skuWidthCol.text())]    # 产品宽
+            inv_skuHeightCol = self.inv_df.columns[int(self.inv_skuHeightCol.text())]    # 产品高
+            inv_locNumCol = self.inv_df.columns[int(self.inv_locNumCol.text())]  # 库位数量
+
+
+            self.inv_info = '物理仓名称：{}'.format(self.inv_df['物理仓名称'].unique()[0])
+
+            valid_columns = [inv_dateCol, inv_putawayDateCol, inv_customerCol, inv_skuCol, inv_skuSizeCol, inv_invQty, inv_invVol,
+                  inv_invTypeCol, inv_skuLengthCol, inv_skuWidthCol, inv_skuHeightCol, inv_locNumCol]
 
             print('输入的列编号对应的列名：')
-            print(inv_dateCol, inv_skuCol, inv_customerCol, inv_putawayDateCol, inv_skuSizeCol, inv_invQty, inv_invVol)
+            print(valid_columns)
 
+            self.inv_df = self.inv_df[valid_columns]    # 保留有效字段
+            self.inv_df.dropna(how='any', inplace=True)   # 删除有缺失的行
+
+            # 返回指定日期的批次库存数据,否则返回所有数据
+            d_date = self.inv_dateEdit.text()
             all_invDates = self.inv_df[inv_dateCol].unique()
+
+            print('d_date:', d_date)
+            print('all_invDates:', all_invDates)
+            print( d_date in all_invDates)
+
+            if d_date in all_invDates:
+                self.inv_df = self.inv_df.where(self.inv_df[inv_dateCol] == d_date)
+                self.inv_info = self.inv_info + '; 批次库存日期：{}'.format(d_date)
+            else:
+                self.inv_info = self.inv_info + '; 批次库存日期：{}'.format(self.inv_df[inv_dateCol].unique())
 
             # 计算库龄
             self.inv_df[inv_dateCol] = pd.to_datetime(self.inv_df[inv_dateCol])
@@ -245,20 +272,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             for i in range(rank_num):
                 self.inv_df.loc[(self.inv_df['库龄'] > config.AGE_CLASS[i][1]) & (self.inv_df['库龄'] <= config.AGE_CLASS[i][2]), ['库龄等级']] = config.AGE_CLASS[i][0]
 
-
             print('库存数据处理完成！')
-
-            # 返回指定日期的批次库存数据,否则返回所有数据
-            d_date = self.inv_dateEdit.text()
-
-            print('d_date:', d_date)
-            print('all_invDates:', all_invDates)
-            print( d_date in all_invDates)
-
-            if d_date in all_invDates:
-                self.inv_df = self.inv_df.where(self.inv_df[inv_dateCol] == d_date)
-
-
             # 输入sku对应列编号
             sku = self.sku_df.columns[int(self.skuCol.text())]
             skuSizeCol = self.sku_df.columns[int(self.skuSizeCol.text())]
@@ -267,27 +281,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             skuHeightCol = self.sku_df.columns[int(self.skuHeightCol.text())]
 
             cols = [sku, skuSizeCol, skuLengthCol, skuWidthCol, skuHeightCol]
-
             self.sku_df = self.sku_df[cols].drop_duplicates()
 
             print('sku数据处理完成！')
 
-
             '''显示数据预览'''
             row1 = self.inv_df.shape[0]
             col1 = self.inv_df.shape[1]
-
             skuNum = self.sku_df.shape[0]
+            print('库存数据预览：', row1, col1)
+            self.inv_info = self.inv_info + '; 库存数据量：行数 {}, 列数 {}'.format(row1, col1)
 
-            print('数据预览：', row1, col1, skuNum)
+            row2 = self.sku_df.shape[0]
+            col2 = self.sku_df.shape[1]
+            print('SKU数据预览：', row2)
+            self.inv_info = self.inv_info + '; SKU数据量：行数 {}, 列数 {}'.format(row2, col2)
 
             # 去重
             self.inv_df = self.inv_df.drop_duplicates()
-            row2 = self.inv_df.shape[0]
-
-            print('数据预览：row2', row2)
-
-
             self.inv_totalRow.setText("{:,}".format(row1))  #数据总行数
             self.inv_totalCol.setText("{:,}".format(col1))  #数据总列数
 
@@ -310,19 +321,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         try:
             print('in inventory_analysis！')
+            print(self.inv_df.columns)
             # 输入库存数据对应列编号
-            inv_dateCol = self.inv_df.columns[int(self.inv_dateCol.text())]  # 库存日期
-
-            inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
-            inv_customerCol = self.inv_df.columns[int(self.inv_customerCol.text())]  # 客户代码
-            inv_putawayDateCol = self.inv_df.columns[int(self.inv_putawayDateCol.text())]  # 上架日期
-            inv_skuSizeCol = self.inv_df.columns[int(self.inv_skuSizeCol.text())]  # 产品货型
-            inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]  # 在库件数
-            inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
+            [inv_dateCol, inv_putawayDateCol, inv_customerCol, inv_skuCol, inv_skuSizeCol, inv_invQty, inv_invVol,
+             inv_invTypeCol, inv_skuLengthCol, inv_skuWidthCol, inv_skuHeightCol, inv_locNumCol] = self.inv_df.columns[0:12]
 
             print('输入的列编号对应的列名：')
             print(inv_dateCol, inv_skuCol, inv_customerCol, inv_putawayDateCol, inv_skuSizeCol, inv_invQty, inv_invVol)
-
 
 
             # 简单库位匹配，一个sku只匹配一种库位类型
@@ -375,10 +380,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         '''库存数据基础字段计算'''
         try:
             print('in calculate_single_location')
+            # inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
+            # inv_skuSizeCol = self.inv_df.columns[int(self.inv_skuSizeCol.text())]  # 产品货型
+            # inv_skuLengthCol = self.inv_df.columns[int(self.inv_skuLengthCol.text())]  # 产品长
 
-            inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
-            inv_skuSize = self.inv_df.columns[int(self.inv_skuSizeCol.text())]  # 在库体积
-            inv_skuLength = self.inv_df.columns[int(self.inv_skuLengthCol.text())]  # 产品长
+            # 库存数据中的列名
+            [inv_dateCol, inv_putawayDateCol, inv_customerCol, inv_skuCol, inv_skuSizeCol, inv_invQty, inv_invVol,
+             inv_invTypeCol, inv_skuLengthCol, inv_skuWidthCol, inv_skuHeightCol, inv_locNumCol] = self.inv_df.columns[0:12]
 
 
             config = Config()
@@ -387,7 +395,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.inv_df['在库托数'] = self.inv_df[inv_invVol] / config.PALLET['valid_vol']
 
             self.inv_df['是否超长'] = 'N'
-            self.inv_df.loc[(self.inv_df[inv_skuLength] >= config.SUPER_LONG_PARAM), ['是否超长']] = 'Y'
+            self.inv_df.loc[(self.inv_df[inv_skuLengthCol] >= config.SUPER_LONG_PARAM), ['是否超长']] = 'Y'
 
             self.inv_df['是否批量'] = 'N'
             self.inv_df.loc[(self.inv_df['在库托数'] >= config.BATCH_PARAM), ['是否批量']] = 'Y'
@@ -395,8 +403,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.inv_df['储位类型'] = np.NAN
             self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df['是否批量'] == 'Y'), ['储位类型']] = '批量平铺区'
             self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df['是否超长'] == 'Y'), ['储位类型']] = '超长平铺区'
-            self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df['是否超长'] == 'N') & (self.inv_df[inv_skuSize] == 'XL'), ['储位类型']] = '异形高架区'
-            self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df[inv_skuSize] == 'L1') | (self.inv_df[inv_skuSize] == 'L2'), ['储位类型']] = '卡板区'
+            self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df['是否超长'] == 'N') & (self.inv_df[inv_skuSizeCol] == 'XL'), ['储位类型']] = '异形高架区'
+            self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df[inv_skuSizeCol] == 'L1') | (self.inv_df[inv_skuSizeCol] == 'L2'), ['储位类型']] = '卡板区'
             self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df[inv_invVol] >= config.PALLET['min_vol']), ['储位类型']] = '卡板区'
             self.inv_df.loc[(self.inv_df['储位类型'].isna()) & (self.inv_df[inv_invVol] >= config.BOX['min_vol']), ['储位类型']] = '原箱区'
             self.inv_df.loc[(self.inv_df['储位类型'].isna()), ['储位类型']] = '储位盒区'
@@ -426,10 +434,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def inventory_design_location(self, index=None, pt_col=None):
         try:
-            inv_dateCol = self.inv_df.columns[int(self.inv_dateCol.text())]  # 库存日期
-            inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
-            inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]  # 在库件数
-            inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
+            # inv_dateCol = self.inv_df.columns[int(self.inv_dateCol.text())]  # 库存日期
+            # inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
+            # inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]  # 在库件数
+            # inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
+
+            # 库存数据中的列名
+            [inv_dateCol, inv_putawayDateCol, inv_customerCol, inv_skuCol, inv_skuSizeCol, inv_invQty, inv_invVol,
+             inv_invTypeCol, inv_skuLengthCol, inv_skuWidthCol, inv_skuHeightCol, inv_locNumCol] = self.inv_df.columns[0:12]
 
             if index is None:
                 index = [inv_dateCol, '储位类型']
@@ -514,24 +526,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             # print('In current_location function')
 
-            inv_dateCol = self.inv_df.columns[int(self.inv_dateCol.text())]  # 库存日期
-            inv_locTypeCol = self.inv_df.columns[int(self.inv_locTypeCol.text())]  # 储位类型
-            inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
-            inv_putawayDateCol = self.inv_df.columns[int(self.inv_putawayDateCol.text())]  # 上架日期
-            inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]  # 在库件数
-            inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
-            inv_locNum = self.inv_df.columns[int(self.inv_locNumCol.text())]
+            # inv_dateCol = self.inv_df.columns[int(self.inv_dateCol.text())]  # 库存日期
+            # inv_putawayDateCol = self.inv_df.columns[int(self.inv_putawayDateCol.text())]  # 上架日期
+            # inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
+            # inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]  # 在库件数
+            # inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
+            # inv_invTypeCol = self.inv_df.columns[int(self.inv_locTypeCol.text())]  # 储位类型
+            # inv_locNumCol = self.inv_df.columns[int(self.inv_locNumCol.text())]  # 在库数量
+
+            # 库存数据中的列名
+            [inv_dateCol, inv_putawayDateCol, inv_customerCol, inv_skuCol, inv_skuSizeCol, inv_invQty, inv_invVol,
+             inv_invTypeCol, inv_skuLengthCol, inv_skuWidthCol, inv_skuHeightCol, inv_locNumCol] = self.inv_df.columns[0:12]
 
             if index is None:
-                index = [inv_dateCol, inv_locTypeCol]
+                index = [inv_dateCol, inv_invTypeCol]
 
             if pt_col is None:
-                pt_col = [inv_skuCol, inv_locNum, inv_invQty, inv_invVol]
+                pt_col = [inv_skuCol, inv_locNumCol, inv_invQty, inv_invVol]
 
             # datetime64[ns]不能作为key,将日期列的格式转换为string
             self.inv_df[inv_dateCol] = self.inv_df[inv_dateCol].astype(str)
             self.inv_df[inv_putawayDateCol] = self.inv_df[inv_putawayDateCol].astype(str)
-            self.inv_df['Month Key'] = self.inv_df['Month Key'].astype(str)
 
             # datetime64[ns]不能作为key,将日期列的格式转换为string
             self.inv_df[inv_dateCol] = self.inv_df[inv_dateCol].astype(str)
@@ -539,7 +554,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             df_location = pd.pivot_table(self.inv_df, index=index,
                                          values=pt_col,
-                                         aggfunc={inv_skuCol: pd.Series.nunique, inv_locNum: np.sum, inv_invQty: np.sum, inv_invVol: np.sum},
+                                         aggfunc={inv_skuCol: pd.Series.nunique, inv_locNumCol: np.sum, inv_invQty: np.sum, inv_invVol: np.sum},
                                          fill_value=0).reset_index()
 
             # 重排列
@@ -573,11 +588,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         '''
         try:
             # 输入库存数据对应列编号
-            inv_customerCol = self.inv_df.columns[int(self.inv_customerCol.text())]    # 客户代码
-            inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
-            inv_skuSizeCol = self.inv_df.columns[int(self.inv_skuSizeCol.text())]  # 产品货型
-            inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]    # 在库件数
-            inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]    # 在库体积
+            # inv_customerCol = self.inv_df.columns[int(self.inv_customerCol.text())]    # 客户代码
+            # inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
+            # inv_skuSizeCol = self.inv_df.columns[int(self.inv_skuSizeCol.text())]  # 产品货型
+            # inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]    # 在库件数
+            # inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]    # 在库体积
+
+            # 库存数据中的列名
+            [inv_dateCol, inv_putawayDateCol, inv_customerCol, inv_skuCol, inv_skuSizeCol, inv_invQty, inv_invVol,
+             inv_invTypeCol, inv_skuLengthCol, inv_skuWidthCol, inv_skuHeightCol, inv_locNumCol] = self.inv_df.columns[0:12]
 
             sort_size = ['XL', 'L2', 'L1', 'M', 'S', 'XS']
             self.inv_df[inv_skuSizeCol] = pd.Categorical(self.inv_df[inv_skuSizeCol], sort_size)
@@ -631,7 +650,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             df_customer['库存深度(m³/sku)'] = df_customer['{}_总计'.format(inv_invVol)] / df_customer['sku数']
             df_customer['库存深度(件/sku)'] = df_customer['{}_总计'.format(inv_invQty)] / df_customer['sku数']
 
-            df_customer['大件体积占比'] = df_customer['{}_XL%'.format(inv_invQty)] + df_customer['{}_L2%'.format(inv_invQty)] + df_customer['{}_L1%'.format(inv_invQty)]
+            df_customer['大件体积占比'] = df_customer['{}_XL%'.format(inv_invVol)] + df_customer['{}_L2%'.format(inv_invVol)] + df_customer['{}_L1%'.format(inv_invVol)]
 
             df_customer['客户类型'] = np.NAN
             df_customer.loc[(df_customer['客户类型'].isna()) & (df_customer['大件体积占比'] >= 0.8), ['客户类型']] = '纯大货型'
@@ -696,10 +715,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         ### 客户维度的库存，sku数，库存深度
         # 输入库存数据对应列编号
         try:
-            inv_customerCol = self.inv_df.columns[int(self.inv_customerCol.text())]  # 客户代码
-            inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
-            inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]  # 在库件数
-            inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
+            # inv_customerCol = self.inv_df.columns[int(self.inv_customerCol.text())]  # 客户代码
+            # inv_skuCol = self.inv_df.columns[int(self.inv_skuCol.text())]  # 产品代码
+            # inv_invQty = self.inv_df.columns[int(self.inv_invQty.text())]  # 在库件数
+            # inv_invVol = self.inv_df.columns[int(self.inv_invVol.text())]  # 在库体积
+
+            # 库存数据中的列名
+            [inv_dateCol, inv_putawayDateCol, inv_customerCol, inv_skuCol, inv_skuSizeCol, inv_invQty, inv_invVol,
+             inv_invTypeCol, inv_skuLengthCol, inv_skuWidthCol, inv_skuHeightCol, inv_locNumCol] = self.inv_df.columns[0:12]
 
             customer_cols = [inv_customerCol, inv_skuCol, inv_invQty, inv_invVol]
 
@@ -720,27 +743,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def inventory_save_data(self):
         try:
             filePath, ok2 = QFileDialog.getSaveFileName(None, caption='保存文件', filter='Excel files(*.xlsx , *.xls)')
-            # print(filePath)  # 打印保存文件的全部路径（包括文件名和后缀名）
+            print(filePath)  # 打印保存文件的全部路径（包括文件名和后缀名）
             if 'xls' in filePath or 'xlsx' in filePath:
                 ### write to file
                 writer = pd.ExcelWriter(filePath)
 
-                inv_dateCol = self.inv_df.columns[int(self.inv_dateCol.text())]  # 库存日期
-
-                wh = self.inv_df.at[1, '物理仓名称']
-                date = self.inv_df.at[1, inv_dateCol]
-                rows = self.inv_df.shape[0]
-                cols = self.inv_df.shape[1]
-                data_info = '''数据源\n 物理仓： {},  批次库存日期：{},  数据量：行数 {}, 列数{}'''.format(wh, date, rows, cols)
-                # print('inventory data info: ', data_info)
+                print('inventory data info: ', self.inv_info)
                 if self.design_location_df.shape[0]>0:
-                    self.format_data(writer=writer, df=self.design_location_df, sheet_name='A1.1-库位推荐', source_data_info=data_info)
+                    print('self.design_location_df: ', self.design_location_df)
+                    self.format_data(writer=writer, df=self.design_location_df, sheet_name='A1.1-库位推荐', source_data_info=self.inv_info)
                 if self.current_location_df.shape[0] > 0:
-                    self.format_data(writer=writer, df=self.current_location_df, sheet_name='A1.2-现状库位', source_data_info=data_info)
+                    self.format_data(writer=writer, df=self.current_location_df, sheet_name='A1.2-现状库位', source_data_info=self.inv_info)
                 if self.inventory_customer_df.shape[0] > 0:
-                    self.format_data(writer=writer, df=self.inventory_customer_df, sheet_name='A2-客户货型分布', source_data_info=data_info)
+                    self.format_data(writer=writer, df=self.inventory_customer_df, sheet_name='A2-客户货型分布', source_data_info=self.inv_info)
                 if self.inventory_age_df.shape[0] > 0:
-                    self.format_data(writer=writer, df=self.inventory_age_df, sheet_name='A3-库龄', source_data_info=data_info)
+                    self.format_data(writer=writer, df=self.inventory_age_df, sheet_name='A3-库龄', source_data_info=self.inv_info)
                 if self.inv_df.shape[0] > 0:
                     self.format_data(writer=writer, df=self.inv_df, sheet_name='01-数据源')
                 if self.sku_df.shape[0] > 0:
@@ -796,14 +813,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.ob_df = pd.read_csv(filename, encoding='utf-8')
                 except:
                     self.ob_df = pd.read_csv(filename, encoding='gbk')
-
-
                 print('出库数据1： ', self.ob_df.shape)
                 row1 = self.ob_df.shape[0]
 
                 # 删除有空值的行
-                self.ob_df.dropna(how='any', inplace=True)
-
+                self.ob_df.dropna(how='all', inplace=True)
                 print('出库数据2： ', self.ob_df.shape)
                 row2 = self.ob_df.shape[0]
                 model = dfModel(self.ob_df.head(100))
@@ -814,7 +828,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.ob_df = pd.read_excel(filename)
                 # 删除有空值的行
                 row1 = self.ob_df.shape[0]
-                self.ob_df.dropna(how='any', inplace=True)
+                self.ob_df.dropna(how='all', inplace=True)
                 row2 = self.ob_df.shape[0]
                 self.ob_totalRow.setText("{:,}".format(row2))  # 数据总行数
                 self.ob_errorRow.setText("{:,}".format(row1 - row2))  # 异常数据
@@ -838,14 +852,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.ob_time_df = pd.read_csv(filename, encoding='gbk')
 
                 # 删除有空值的行
-                self.ob_time_df.dropna(how='any', inplace=True)
+                self.ob_time_df.dropna(how='all', inplace=True)
                 model = dfModel(self.ob_time_df.head(100))
                 self.ob_timeTableView.setModel(model)
 
             elif 'xlsx' in filename:
                 self.ob_time_df = pd.read_excel(filename)
                 # 删除有空值的行
-                self.ob_time_df.dropna(how='any', inplace=True)
+                self.ob_time_df.dropna(how='all', inplace=True)
                 model = dfModel(self.ob_time_df.head(100))
                 self.ob_timeTableView.setModel(model)
             else:
@@ -861,7 +875,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             date = self.ob_df.columns[int(self.ob_dateCol.text())]       # 出库日期
             orderID = self.ob_df.columns[int(self.ob_orderCol.text())]   # 订单号
             sku = self.ob_df.columns[int(self.ob_skuCol.text())]         # sku
-            quantity = self.ob_df.columns[int(self.ob_qtyCol.text())]        # 出库件数
+            quantity = self.ob_df.columns[int(self.ob_qtyCol.text())]    # 出库件数
 
             option_orig_column = []
             option_new_column = []
@@ -897,10 +911,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             detail_data = self.ob_df[valid_columns_name]
             detail_data.columns = new_columns_name
 
+            ### 删除有缺失的列
+            # self.ob_df.dropna(how='any', inplace=True)
+            detail_data.dropna(how='any', inplace=True)
+
             print(detail_data.head(10))
             # row1 = self.ob_df.shape[0]
-
-
 
             '''出库时间列 数据处理'''
             date_col = []
@@ -928,7 +944,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             # self.show_info_dialog('订单明细数据处理完成！！')
 
-            '''订单流入数据'''
+            '''
+            订单流入数据
+            '''
             orderID_obtime = self.ob_time_df.columns[int(self.ob_orderCol2.text())]  # 订单号
             time_in = self.ob_time_df.columns[int(self.ob_timeInCol.text())]  # sku
 
@@ -960,6 +978,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             print('订单流入时间有效列名：', valid_columns_name2)
             time_data = self.ob_time_df[valid_columns_name2]
+
+            ### 筛查有缺失的列
+            self.ob_time_df.dropna(how='any', inplace=True)
+
             time_data.columns = new_columns_name2
             time_data['time_in'] = pd.to_datetime(time_data['time_in'])
 
@@ -972,7 +994,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             print('合并数据： ', re.shape)
             print('合并数据： ', re.shape)
+            print(re)
+
+            re.dropna(how='any', inplace=True)  # 删除有空值的行
             self.ob_validDF = re
+            print('self.ob_validDF shape: ', self.ob_validDF.shape)
+            print(self.ob_validDF.head(10))
+            print(self.ob_validDF.columns)
             print('合并订单数据及订单流入时间 成功！')
 
             # self.show_info_dialog('订单流入时间数据处理完成！！')
@@ -1003,7 +1031,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.ob_validDF.loc[(self.ob_validDF['order_tag'] == '否'), ['order_tag']] = '标准订单'
 
             ### outbound source information
-
+            print('***************')
             df_order = pd.pivot_table(self.ob_validDF, index=['orderID'], values=['sku', 'quantity'], aggfunc={'sku': len, 'quantity': np.sum}).reset_index()
             ## 根据订单的行数和件数更新订单结构
             df_order['re_order_structure'] = np.NAN
@@ -1014,7 +1042,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             ### 增加新定义的订单类型
             self.ob_validDF = pd.merge(self.ob_validDF, df_order[['orderID', 're_order_structure']], on=['orderID'], how='left')
-            # print('0000000000, self.ob_df', self.ob_df.head(10))
+            print('0000000000', self.ob_validDF.shape)
 
 
             ''' 计算订单的货型组合 '''
@@ -1030,7 +1058,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             ### 增加订单货型字段
             df_order_size['order_size_type'] = df_order_size['size_type']
-            # print('11111111, df_order_size', df_order_size.head(10))
+            print('11111111, df_order_size', df_order_size.head(10))
 
             ###组合类型
             df_order_size.loc[(df_order_size['size_type'].str.contains('大')) & (df_order_size['size_type'].str.contains('小')), 'order_size_type'] = '大配小'
@@ -1056,12 +1084,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             order_type_sorted = ['小', '中', '大', '中配小', '大配小', '大配中', '大中小', 'XL']
             df_order_size['order_size_type'] = pd.Categorical(df_order_size['order_size_type'], order_type_sorted)
 
-            # print('22222222, df_order_size', df_order_size.head(10))
+            print('22222222, df_order_size', df_order_size.head(10))
 
             '''合并 订单明细数据 和 订单货型数据'''
             self.ob_validDF = pd.merge(self.ob_validDF, df_order_size, on=['orderID'], how='left')
 
-            # print('33333333, ob_df', self.ob_df.columns)
+            print('33333333, ob_df', self.ob_df.columns)
             # print('33333333, ob_df', self.ob_df.dtypes)
 
             self.ob_validDF['month'] = self.ob_validDF.date.dt.month
@@ -2090,14 +2118,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.ib_df = pd.read_csv(filename, encoding='utf-8')
                 except:
                     self.ib_df = pd.read_csv(filename, encoding='gbk')
-
+                # 删除有空值的行
+                row1 = self.ib_df.shape[0]
+                self.ib_df.dropna(how='all', inplace=True)
+                row2 = self.ib_df.shape[0]
+                self.ib_totalRow.setText("{:,}".format(row2))  # 数据总行数
+                self.ib_errorRow.setText("{:,}".format(row1 - row2))  # 异常数据
                 model = dfModel(self.ib_df.head(100))
                 self.ib_dataTableView.setModel(model)
             elif 'xlsx' in filename:
                 self.ib_df = pd.read_excel(filename)
                 # 删除有空值的行
                 row1 = self.ib_df.shape[0]
-                self.ib_df.dropna(how='any', inplace=True)
+                self.ib_df.dropna(how='all', inplace=True)
                 row2 = self.ib_df.shape[0]
                 self.ib_totalRow.setText("{:,}".format(row2))  # 数据总行数
                 self.ib_errorRow.setText("{:,}".format(row1 - row2))  # 异常数据
@@ -2363,6 +2396,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print(daily_container_df.shape)
             print(daily_container_df.head(10))
 
+
+            '''日来柜中海柜中的SKU数'''
+
+            sku_index = ['month', 'weekday', 'date', 'delivery_mode', 'deliveryNO']
+            daily_container_sku_df = pd.pivot_table(df, index=sku_index,
+                                                values=['sku'],
+                                                aggfunc={'sku': pd.Series.nunique},
+                                                fill_value=0).reset_index()
+
+            print('*'*20, "daily_container_sku_df")
+            print(daily_container_sku_df)
+
             new_shape = df.shape
             days = df['date'].nunique()
             start_date = df['date'].min()
@@ -2376,6 +2421,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.ib_container_carton_type = carton_type_pivot
             self.ib_container_skuNum = sku_type_pivot
             self.ib_daily_container_num = daily_container_df
+            self.ib_daily_container_sku = daily_container_sku_df
+
 
             self.ib_resultsTableView.setModel(dfModel(self.ib_container_carton_type))
             self.show_info_dialog('【箱数分布】计算完成!')
@@ -2398,6 +2445,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.format_data(writer=writer, df=self.ib_container_skuNum, sheet_name='C3-单箱SKU分布', source_data_info=self.ib_info)
                 if self.ib_daily_container_num.shape[0] > 0:
                     self.format_data(writer=writer, df=self.ib_daily_container_num, sheet_name='C4-日来柜数量', source_data_info=self.ib_info)
+                if self.ib_daily_container_sku.shape[0]>0:
+                    self.format_data(writer=writer, df=self.ib_daily_container_sku, sheet_name='C5-日来柜SKU数', source_data_info=self.ib_info)
 
                 writer.save()
                 self.show_info_dialog('入库分析结果保存成功！')
@@ -2431,7 +2480,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         :param source_data_info: 原始数据信息
         :return: None
         '''
-
+        print('in format_data function sheet_name: ', sheet_name)
         workbook = writer.book
 
         '''设置格式'''
@@ -2586,7 +2635,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             remark = '''测算逻辑 \n 1. 日维度不同货运方式到货件型分布'''
 
             worksheet1.set_row(0, 50)  # 设置测试逻辑行高
-            worksheet1.set_row(1, 100)  # 设置数据来源行高
+            worksheet1.set_row(1, 80)  # 设置数据来源行高
 
             worksheet1.merge_range('A1:{}1'.format(end_col), remark, remark_fmt)
             worksheet1.merge_range('A2:{}2'.format(end_col), source_data_info, remark_fmt)
@@ -2611,7 +2660,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             \t ①单箱单件：箱内sku数=1，件数=1；\t ②单箱单件：箱内sku数=1，件数>1；\t ③单箱多品：箱内sku数>1，件数>1；\t ④异常：件数=0'''
 
             worksheet1.set_row(0, 100)  # 设置测试逻辑行高
-            worksheet1.set_row(1, 100)  # 设置数据来源行高
+            worksheet1.set_row(1, 80)  # 设置数据来源行高
 
             worksheet1.merge_range('A1:{}1'.format(end_col), remark, remark_fmt)
             worksheet1.merge_range('A2:{}2'.format(end_col), source_data_info, remark_fmt)
@@ -2641,7 +2690,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             remark = '''测算逻辑 \n 1. 日维度不同货运方式到货箱内SKU数分布；\n 2. 箱内含1sku~9sku的箱数单独统计作为列，大于10sku的箱合并统计，只展示数据中存在的列。'''
 
             worksheet1.set_row(0, 50)  # 设置测试逻辑行高
-            worksheet1.set_row(1, 100)  # 设置数据来源行高
+            worksheet1.set_row(1, 80)  # 设置数据来源行高
 
             worksheet1.merge_range('A1:{}1'.format(end_col), remark, remark_fmt)
             worksheet1.merge_range('A2:{}2'.format(end_col), source_data_info, remark_fmt)
@@ -2656,7 +2705,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             remark = '''测算逻辑 \n 1. 日维度海柜及快递方式到货数量，以及来货频次'''
 
             worksheet1.set_row(0, 50)  # 设置测试逻辑行高
-            worksheet1.set_row(1, 100)  # 设置数据来源行高
+            worksheet1.set_row(1, 80)  # 设置数据来源行高
+
+            worksheet1.merge_range('A1:{}1'.format(end_col), remark, remark_fmt)
+            worksheet1.merge_range('A2:{}2'.format(end_col), source_data_info, remark_fmt)
+
+            ### 没有有合并行的地方，添加说明行边框
+            worksheet1.conditional_format('A1:{}2'.format(end_col),
+                                          {'type': 'cell', 'criteria': '>=', 'value': 0, 'format': border_format})
+
+        elif 'C5' in sheet_name:
+            # 海柜及快递来货体积及件数分布
+            remark = '''测算逻辑 \n 1. 日维度海柜及快递中SKU数量'''
+
+            worksheet1.set_row(0, 50)  # 设置测试逻辑行高
+            worksheet1.set_row(1, 80)  # 设置数据来源行高
 
             worksheet1.merge_range('A1:{}1'.format(end_col), remark, remark_fmt)
             worksheet1.merge_range('A2:{}2'.format(end_col), source_data_info, remark_fmt)
@@ -2893,7 +2956,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # print(col, '百分数')
                 worksheet1.conditional_format('{}1:{}{}'.format(cap_list[i], cap_list[i], end_row),
                                               {'type': 'cell', 'criteria': '>=', 'value': 0, 'format': percent_fmt})
-            elif 'm³' in col or '系数' in col or 'vol' in col or '体积' in col:
+            elif 'm³' in col or '系数' in col or 'vol' in col or '体积' in col or '在库托数' in col:
                 # print(col, '2位小数，千分位')
                 worksheet1.conditional_format('{}1:{}{}'.format(cap_list[i], cap_list[i], end_row),
                                               {'type': 'cell', 'criteria': '>=', 'value': 0, 'format': dec2_fmt})
@@ -2959,6 +3022,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 ### 库存分析修改列名
                 col = col.replace('在库体积(m³)_', '')
                 col = col.replace('在库体积(M3)_', '')
+                col = col.replace('在库体积(M³)_', '')
                 col = col.replace('在库件数_', '')
 
                 ### 入库分析字段翻译

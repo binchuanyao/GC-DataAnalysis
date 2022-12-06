@@ -178,7 +178,7 @@
        <string notr="true"/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="Inventory">
        <property name="styleSheet">
@@ -1961,7 +1961,7 @@ font: 75 14pt &quot;微软雅黑&quot;;</string>
            <item row="1" column="0">
             <widget class="QLabel" name="label_ib_date">
              <property name="text">
-              <string>收库日期</string>
+              <string>收货日期</string>
              </property>
             </widget>
            </item>
